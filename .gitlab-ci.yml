@@ -1,0 +1,53 @@
+stages:
+  - generate_inventory
+  - syntaxCheck
+  - sshConfVert
+
+image: alpine/ansible:2.18.6
+
+variables:
+  VCENTER_HOST: $VCENTER_HOST
+  VCENTER_USER: $VCENTER_USER
+  VCENTER_PASS: $VCENTER_PASS
+
+generate-inventory:
+  stage: generate_inventory
+  image: python:3.10
+  script:
+    #- pip install ansible
+    #- ansible-galaxy collection install -r requirements.yml
+    - ansible-playbook generate_inventory.yml
+    - git config --global user.email "gitlab-ci@your_gitlab_domain"
+    - git config --global user.name "GitLab CI"
+    - git add inventory.yml
+    - |
+      if ! git diff --staged --quiet; then
+        git commit -m "Automated inventory update $(date -u)"
+        git push "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_PROJECT_URL#hyour_gitlab_domain}"
+      else
+        echo "No changes in inventory."
+      fi
+
+syntaxcheck:
+  stage: syntaxCheck
+  except: 
+    - main
+  script:
+    - ansible-lint *.yml
+
+sshconfvert:
+  stage: sshConfVert
+  before_script:
+    - git config --global user.email ""
+    - git config --global user.name ""
+  script:
+    - python3 sshconfvert.py
+    - git clone https://$DEPLOY_TOKEN_USER:$DEPLOY_TOKEN_PASSWORD@$GITLAB_URL/devops/ssh-config.git
+    - cp ./config ./ssh-config/
+    - cd ./ssh-config
+    - git add .
+    - git commit -m "system said ssh config is updated and ready"
+    - git push -u origin main
+
+only:
+  - main

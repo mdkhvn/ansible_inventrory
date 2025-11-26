@@ -1,0 +1,28 @@
+all:
+  children:
+{% for folder, vms in vcenter_vms.items() %}
+    {{ folder }}:
+      hosts:
+{% for vm in vms %}
+{% set parts = vm.guest_name.split('-') %}
+{% set clean_name = parts[:-1] | join('-') %}
+        {{ clean_name }}.{{ domain }}:
+{% endfor %}
+{% endfor %}
+
+  hosts:
+{% for folder, vms in vcenter_vms.items() %}
+{% for vm in vms %}
+{% set parts = vm.guest_name.split('-') %}
+{% set clean_name = parts[:-1] | join('-') %}
+{% set hostname = clean_name + "." + domain %}
+{% set octets = vm.guest_name.split('-')[-1].split('.') %}
+{% if octets | length == 2 %}
+    {{ hostname }}:
+      ansible_host: {{ fixed_ip_prefix }}.{{ octets[0] }}.{{ octets[1] }}
+{% else %}
+    {{ hostname }}:
+      ansible_host: "UNKNOWN"
+{% endif %}
+{% endfor %}
+{% endfor %}

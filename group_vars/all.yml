@@ -1,0 +1,5 @@
+vcenter_hostname: "{{ lookup('env', 'VCENTER_HOST') }}"
+vcenter_username: "{{ lookup('env', 'VCENTER_USER') }}"
+vcenter_password: "{{ lookup('env', 'VCENTER_PASS') }}"
+fixed_ip_prefix: "172.30"
+domain: "test.local"

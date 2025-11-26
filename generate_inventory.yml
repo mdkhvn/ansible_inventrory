@@ -1,0 +1,41 @@
+- name: Generate static inventory from vCenter
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - vmware.vmware
+
+  tasks:
+    - name: Include secrets
+      include_vars: group_vars/all.yml
+      
+    - name: Gather all VMs from vCenter
+      vmware_vm_info:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        folder: "/{{ datacenter_name }}/vm"
+      register: vms_info
+
+    - name: Initialize folder dictionary
+      set_fact:
+        vcenter_vms: {}
+
+    - name: Build dictionary of VMs grouped by folder
+      set_fact:
+        vcenter_vms: >-
+          {{
+            vcenter_vms | combine({
+              (
+                (item.folder[0] if item.folder and item.folder[0] != '/' else 'general') 
+                | replace(' ', '_')
+              ): 
+              (vcenter_vms.get((item.folder[0] if item.folder and item.folder[0] != '/' else 'general') | replace(' ', '_'), []) + [item])
+            })
+          }}
+      loop: "{{ vms_info.virtual_machines }}"
+
+    - name: Generate static inventory file
+      template:
+        src: inventory.yml.j2
+        dest: inventory.yml
